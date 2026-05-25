@@ -1,5 +1,5 @@
 const express = require('express');
-const fetch = require('node-fetch');  // ← теперь работает с версией 2
+const fetch = require('node-fetch');
 const cors = require('cors');
 
 const app = express();
@@ -23,10 +23,9 @@ app.get('/matches', async (req, res) => {
     nextWeek.setDate(today.getDate() + 7);
     const to = nextWeek.toISOString().split('T')[0];
     
-    console.log('Запрос к API-Football...');
-    
+    // Запрос к API-Football: Серия А (135), сезон 2025
     const response = await fetch(
-      `https://v3.football.api-sports.io/fixtures?from=${from}&to=${to}&league=135`,
+      `https://v3.football.api-sports.io/fixtures?from=${from}&to=${to}&league=135&season=2025`,
       {
         headers: {
           'x-apisports-key': API_KEY
@@ -35,7 +34,6 @@ app.get('/matches', async (req, res) => {
     );
     
     const data = await response.json();
-    console.log('Ответ получен, матчей:', data.response?.length || 0);
     res.json(data);
   } catch (error) {
     console.error('Ошибка:', error.message);
