@@ -1,5 +1,5 @@
 const express = require('express');
-const fetch = require('node-fetch');
+const fetch = require('node-fetch');  // ← теперь работает с версией 2
 const cors = require('cors');
 
 const app = express();
@@ -14,52 +14,32 @@ app.get('/', (req, res) => {
   res.send('✅ Backend FootBet Mini работает!');
 });
 
-// Диагностический эндпоинт - покажет реальную ошибку
 app.get('/matches', async (req, res) => {
   try {
+    const today = new Date();
+    const from = today.toISOString().split('T')[0];
+    
+    const nextWeek = new Date(today);
+    nextWeek.setDate(today.getDate() + 7);
+    const to = nextWeek.toISOString().split('T')[0];
+    
     console.log('Запрос к API-Football...');
     
-    // Простой тестовый запрос к API
-    const response = await fetch('https://v3.football.api-sports.io/status', {
-      headers: {
-        'x-apisports-key': API_KEY
-      }
-    });
-    
-    const statusData = await response.json();
-    console.log('Статус API:', statusData);
-    
-    // Если статус ОК - пробуем получить матчи
-    if (statusData.response?.account?.subscription?.plan) {
-      const fixturesResponse = await fetch(
-        'https://v3.football.api-sports.io/fixtures?league=135&season=2025&next=5',
-        {
-          headers: {
-            'x-apisports-key': API_KEY
-          }
+    const response = await fetch(
+      `https://v3.football.api-sports.io/fixtures?from=${from}&to=${to}&league=135`,
+      {
+        headers: {
+          'x-apisports-key': API_KEY
         }
-      );
-      
-      const fixturesData = await fixturesResponse.json();
-      
-      // Отправляем полный ответ API (включая ошибки, если есть)
-      res.json({
-        apiStatus: statusData.response.account.subscription.plan,
-        fixtures: fixturesData
-      });
-    } else {
-      res.json({
-        error: 'API ключ не активен',
-        statusResponse: statusData
-      });
-    }
+      }
+    );
     
+    const data = await response.json();
+    console.log('Ответ получен, матчей:', data.response?.length || 0);
+    res.json(data);
   } catch (error) {
     console.error('Ошибка:', error.message);
-    res.status(500).json({ 
-      error: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    });
+    res.status(500).json({ error: error.message });
   }
 });
 
