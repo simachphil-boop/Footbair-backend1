@@ -14,16 +14,25 @@ app.get('/', (req, res) => {
   res.send('✅ Backend FootBet Mini работает!');
 });
 
-// Получить ближайшие матчи (топ-5 лиг)
+// Диагностический эндпоинт - покажет реальную ошибку
 app.get('/matches', async (req, res) => {
   try {
-    // Популярные лиги: 135=Серия А, 140=Ла Лига, 39=АПЛ, 78=Бундеслига, 61=Лига 1
-    const leagues = [135, 140, 39, 78, 61];
-    let allFixtures = [];
-
-    for (const leagueId of leagues) {
-      const response = await fetch(
-        `https://v3.football.api-sports.io/fixtures?league=${leagueId}&season=2025&next=10`,
+    console.log('Запрос к API-Football...');
+    
+    // Простой тестовый запрос к API
+    const response = await fetch('https://v3.football.api-sports.io/status', {
+      headers: {
+        'x-apisports-key': API_KEY
+      }
+    });
+    
+    const statusData = await response.json();
+    console.log('Статус API:', statusData);
+    
+    // Если статус ОК - пробуем получить матчи
+    if (statusData.response?.account?.subscription?.plan) {
+      const fixturesResponse = await fetch(
+        'https://v3.football.api-sports.io/fixtures?league=135&season=2025&next=5',
         {
           headers: {
             'x-apisports-key': API_KEY
@@ -31,22 +40,26 @@ app.get('/matches', async (req, res) => {
         }
       );
       
-      const data = await response.json();
-      if (data.response) {
-        allFixtures = [...allFixtures, ...data.response];
-      }
+      const fixturesData = await fixturesResponse.json();
       
-      // Небольшая задержка, чтобы не превысить лимиты API
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Отправляем полный ответ API (включая ошибки, если есть)
+      res.json({
+        apiStatus: statusData.response.account.subscription.plan,
+        fixtures: fixturesData
+      });
+    } else {
+      res.json({
+        error: 'API ключ не активен',
+        statusResponse: statusData
+      });
     }
     
-    // Сортируем по дате
-    allFixtures.sort((a, b) => new Date(a.fixture.date) - new Date(b.fixture.date));
-    
-    res.json({ response: allFixtures.slice(0, 30) });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Ошибка при получении матчей: ' + error.message });
+    console.error('Ошибка:', error.message);
+    res.status(500).json({ 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
