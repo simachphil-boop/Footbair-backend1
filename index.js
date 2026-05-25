@@ -10,25 +10,43 @@ app.use(express.json());
 
 const API_KEY = "0d515b6fd44590086c1c7ddd4d17aabb";
 
-// Проверка работы сервера
 app.get('/', (req, res) => {
   res.send('✅ Backend FootBet Mini работает!');
 });
 
-// Получить следующие матчи
+// Получить ближайшие матчи (топ-5 лиг)
 app.get('/matches', async (req, res) => {
   try {
-    const response = await fetch('https://v3.football.api-sports.io/fixtures?next=20', {
-      headers: {
-        'x-apisports-key': API_KEY
+    // Популярные лиги: 135=Серия А, 140=Ла Лига, 39=АПЛ, 78=Бундеслига, 61=Лига 1
+    const leagues = [135, 140, 39, 78, 61];
+    let allFixtures = [];
+
+    for (const leagueId of leagues) {
+      const response = await fetch(
+        `https://v3.football.api-sports.io/fixtures?league=${leagueId}&season=2025&next=10`,
+        {
+          headers: {
+            'x-apisports-key': API_KEY
+          }
+        }
+      );
+      
+      const data = await response.json();
+      if (data.response) {
+        allFixtures = [...allFixtures, ...data.response];
       }
-    });
+      
+      // Небольшая задержка, чтобы не превысить лимиты API
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
     
-    const data = await response.json();
-    res.json(data);
+    // Сортируем по дате
+    allFixtures.sort((a, b) => new Date(a.fixture.date) - new Date(b.fixture.date));
+    
+    res.json({ response: allFixtures.slice(0, 30) });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Ошибка при получении матчей' });
+    res.status(500).json({ error: 'Ошибка при получении матчей: ' + error.message });
   }
 });
 
